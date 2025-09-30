@@ -23,9 +23,21 @@ pipeline {
             }
         }
 
+        stage('Create ECR Repo if not exists') {
+            steps {
+                withAWS(credentials: 'awscred', region: "${AWS_REGION}") {
+                    script {
+                        sh """
+                          aws ecr describe-repositories --repository-names reactapp-k8s || \
+                          aws ecr create-repository --repository-name reactapp-k8s
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Login & Push to ECR') {
             steps {
-                // Use AWS credentials stored in Jenkins
                 withAWS(credentials: 'awscred', region: "${AWS_REGION}") {
                     script {
                         sh """
@@ -43,7 +55,6 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Update deployment image and apply Kubernetes manifests
                     sh "kubectl set image deployment/reactapp-deployment reactapp=${ECR_REPO}:${IMAGE_TAG} --record || true"
                     sh "kubectl apply -f deployment.yaml"
                     sh "kubectl apply -f service.yaml"
