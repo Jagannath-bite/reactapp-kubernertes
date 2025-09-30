@@ -2,42 +2,48 @@ pipeline {
     agent any
 
     environment {
-        AWS_ACCOUNT_ID = "028196693486"          // AWS Account ID
-        AWS_REGION = "ap-south-1"                // AWS Region
-        IMAGE_REPO = "react-demo"                // ECR Repository name
-        ECR_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_REPO}"
+        AWS_REGION = 'ap-south-1'
+        ECR_REPO = '028196693486.dkr.ecr.ap-south-1.amazonaws.com/reactapp-k8s'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
-                git 'https://github.com/Jagannath-bite/reactapp-kubernertes.git'
+                git url: 'https://github.com/Jagannath-bite/reactapp-kubernertes.git', branch: 'main'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build --pull -t ${ECR_URL}:latest ."
+                script {
+                    sh "docker build -t reactapp:${IMAGE_TAG} ."
+                }
             }
         }
 
         stage('Login to ECR') {
             steps {
-                sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                script {
+                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}"
+                }
             }
         }
 
         stage('Push to ECR') {
             steps {
-                sh "docker push ${ECR_URL}:latest"
+                script {
+                    sh "docker tag reactapp:${IMAGE_TAG} ${ECR_REPO}:${IMAGE_TAG}"
+                    sh "docker push ${ECR_REPO}:${IMAGE_TAG}"
+                }
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                // Make sure kubeconfig is available on Jenkins node
-                sh "kubectl apply -f k8s-manifests/"
-                sh "kubectl rollout status deployment/<your-deployment-name>"
+                script {
+                    sh "kubectl set image deployment/reactapp-deployment reactapp=${ECR_REPO}:${IMAGE_TAG} --record"
+                }
             }
         }
     }
