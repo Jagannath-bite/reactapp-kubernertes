@@ -10,8 +10,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                     git branch: 'master', url: 'https://github.com/Jagannath-bite/reactapp-kubernertes.git'
-
+                git branch: 'master', url: 'https://github.com/Jagannath-bite/reactapp-kubernertes.git'
             }
         }
 
@@ -23,19 +22,17 @@ pipeline {
             }
         }
 
-        stage('Login to ECR') {
+        stage('Login & Push to ECR') {
             steps {
-                script {
-                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}"
-                }
-            }
-        }
-
-        stage('Push to ECR') {
-            steps {
-                script {
-                    sh "docker tag reactapp:${IMAGE_TAG} ${ECR_REPO}:${IMAGE_TAG}"
-                    sh "docker push ${ECR_REPO}:${IMAGE_TAG}"
+                // Use AWS credentials stored in Jenkins
+                withAWS(credentials: 'awscred', region: "${AWS_REGION}") {
+                    script {
+                        sh """
+                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+                        docker tag reactapp:${IMAGE_TAG} ${ECR_REPO}:${IMAGE_TAG}
+                        docker push ${ECR_REPO}:${IMAGE_TAG}
+                        """
+                    }
                 }
             }
         }
@@ -43,6 +40,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
+                    // Update deployment image and apply Kubernetes manifests
                     sh "kubectl set image deployment/reactapp-deployment reactapp=${ECR_REPO}:${IMAGE_TAG} --record"
                     sh "kubectl apply -f deployment.yaml"
                     sh "kubectl apply -f service.yaml"
