@@ -10,7 +10,8 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git url: 'https://github.com/Jagannath-bite/reactapp-kubernertes.git', branch: 'main'
+                     git branch: 'master', url: 'https://github.com/Jagannath-bite/reactapp-kubernertes.git'
+
             }
         }
 
