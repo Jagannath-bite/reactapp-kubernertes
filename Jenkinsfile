@@ -43,6 +43,9 @@ pipeline {
             steps {
                 script {
                     sh "kubectl set image deployment/reactapp-deployment reactapp=${ECR_REPO}:${IMAGE_TAG} --record"
+                    sh "kubectl apply -f deployment.yaml"
+                    sh "kubectl apply -f service.yaml"
+                    sh "kubectl apply -f ingress.yaml"
                 }
             }
         }
